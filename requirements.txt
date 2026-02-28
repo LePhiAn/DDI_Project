@@ -1,0 +1,9 @@
+torch
+torch-geometric
+rdkit
+deepchem
+pandas
+numpy
+flask  # Cho Web Backend
+streamlit # Cho Web Frontend (lựa chọn 2)
+scikit-learn

@@ -1,0 +1,11 @@
+# Bỏ qua dữ liệu thô và đã xử lý (vì rất nặng)
+data/raw/
+data/processed/
+
+# Bỏ qua môi trường ảo
+venv/
+__pycache__/
+*.pyc
+
+# Bỏ qua file mô hình nặng
+models/*.pth
