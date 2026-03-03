@@ -21,15 +21,16 @@ def create_pyg_graph(df):
     
     # 2. Tạo danh sách các thuốc duy nhất để làm Node
     unique_drugs = pd.concat([df['Drug1'], df['Drug2']]).unique()
-    drug_to_idx = {drug: i for i, drug in enumerate(unique_drugs)}
+    # use uniform name drug_to_id
+    drug_to_id = {drug: i for i, drug in enumerate(unique_drugs)}
     
     # 3. Tạo các cạnh (edges) và loại cạnh (edge_types)
     edge_index = []
     edge_type = []
     
     for _, row in df.iterrows():
-        u = drug_to_idx[row['Drug1']]
-        v = drug_to_idx[row['Drug2']]
+        u = drug_to_id[row['Drug1']]
+        v = drug_to_id[row['Drug2']]
         edge_index.append([u, v])
         edge_type.append(row['Side_Label'])
         

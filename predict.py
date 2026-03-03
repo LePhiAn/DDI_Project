@@ -32,7 +32,8 @@ if not os.path.exists(input_path):
 # --- 3. CHUẨN BỊ DỮ LIỆU & MAPPING ---
 df = pd.read_csv(input_path) 
 all_smiles = pd.concat([df['SMILES_1'], df['SMILES_2']]).unique()
-drug_map = {smiles: i for i, smiles in enumerate(all_smiles)}
+# canonical mapping variable
+drug_to_id = {smiles: i for i, smiles in enumerate(all_smiles)}
 
 # Load tên thuốc từ mapping (nếu có) để in ra cho đẹp
 drug_name_dict = {}
@@ -40,16 +41,16 @@ if os.path.exists(mapping_path):
     mapping_df = pd.read_csv(mapping_path)
     drug_name_dict = dict(zip(mapping_df['SMILES'], mapping_df['Drug_Name']))
 
-side_map = {name: i for i, name in enumerate(df['Side_Name'].unique())}
-num_nodes = len(drug_map)
-num_relations = len(side_map)
+side_to_id = {name: i for i, name in enumerate(df['Side_Name'].unique())}
+num_nodes = len(drug_to_id)
+num_relations = len(side_to_id)
 
 # Load edge_index gốc để Model tính Embeddings
 pos_edge_index = torch.tensor([
-    [drug_map[d1] for d1 in df['SMILES_1']],
-    [drug_map[d2] for d2 in df['SMILES_2']]
+    [drug_to_id[d1] for d1 in df['SMILES_1']],
+    [drug_to_id[d2] for d2 in df['SMILES_2']]
 ], dtype=torch.long)
-pos_edge_type = torch.tensor([side_map[s] for s in df['Side_Name']], dtype=torch.long)
+pos_edge_type = torch.tensor([side_to_id[s] for s in df['Side_Name']], dtype=torch.long)
 
 # --- 4. KHỞI TẠO & NẠP WEIGHTS ---
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -64,14 +65,14 @@ else:
 
 # --- 5. HÀM DỰ ĐOÁN (PREDICT) ---
 def predict_interaction(smiles_1, smiles_2, side_effect_name):
-    if smiles_1 not in drug_map or smiles_2 not in drug_map:
+    if smiles_1 not in drug_to_id or smiles_2 not in drug_to_id:
         return "❌ Lỗi: Thuốc không nằm trong dữ liệu huấn luyện."
     
-    if side_effect_name not in side_map:
+    if side_effect_name not in side_to_id:
         return f"❌ Lỗi: Tác dụng phụ '{side_effect_name}' không tồn tại."
 
-    idx1, idx2 = drug_map[smiles_1], drug_map[smiles_2]
-    rel_idx = side_map[side_effect_name]
+    idx1, idx2 = drug_to_id[smiles_1], drug_to_id[smiles_2]
+    rel_idx = side_to_id[side_effect_name]
 
     with torch.no_grad():
         h = model(pos_edge_index.to(device), pos_edge_type.to(device))
