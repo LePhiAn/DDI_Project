@@ -43,56 +43,56 @@ def render_pair_view(d1_smiles, d2_smiles, selected_side, df_full,
                      drug_names, side_vn_map, predictor, prob_threshold=0):
     short1 = drug_names.get(d1_smiles, _formula(d1_smiles))
     short2 = drug_names.get(d2_smiles, _formula(d2_smiles))
-    st.subheader(f"Doi chieu: {short1} & {short2}")
+    st.subheader(f"Đối chiếu: {short1} & {short2}")
 
     c1, c2 = st.columns(2)
     for col, sm, name, color in [(c1,d1_smiles,short1,"#007bff"),(c2,d2_smiles,short2,"#28a745")]:
         with col:
             mol = Chem.MolFromSmiles(sm)
             if mol: st.image(Draw.MolToImage(mol, size=(400,400)))
-            st.markdown(f'<div style="{_BOX} border-inline-start-color:{color};"><small><b>Ten:</b> {name}</small><br><small><b>CT:</b> {_formula(sm)}</small><br><div style="{_SML}">{sm}</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="{_BOX} border-inline-start-color:{color};"><small><b>Tên:</b> {name}</small><br><small><b>Công thức:</b> {_formula(sm)}</small><br><div style="{_SML}">{sm}</div></div>', unsafe_allow_html=True)
 
     all_ints = df_full[(df_full["SMILES_1"]==d1_smiles)&(df_full["SMILES_2"]==d2_smiles)]
 
-    if selected_side != "Tat ca":
+    if selected_side != "Tất cả":
         side_vn = side_vn_map.get(selected_side, selected_side)
-        st.markdown(f"### Ket qua: {side_vn}")
+        st.markdown(f"### Kết quả: {side_vn}")
         known = not all_ints[all_ints["Side_Name"]==selected_side].empty
         if known:
-            st.error(f"CO TRONG DATASET: Trieu chung {side_vn} da duoc ghi nhan chinh thuc.")
+            st.error(f"CÓ TRONG DATASET: Triệu chứng {side_vn} đã được ghi nhận chính thức.")
         else:
             prob = predictor.get_prob(d1_smiles, d2_smiles, selected_side)
             if prob is not None:
                 pp = prob*100
                 c = _risk_color(pp)
-                st.markdown(f'<div style="border:2px solid {c};border-radius:8px;padding:12px;"><b style="color:{c};">CHUA CO TRONG DATASET</b><br>Xac suat AI: <b style="color:{c};font-size:16px;">{pp:.1f}%</b></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="border:2px solid {c};border-radius:8px;padding:12px;"><b style="color:{c};">CHƯA CÓ TRONG DATASET</b><br>Xác suất AI: <b style="color:{c};font-size:16px;">{pp:.1f}%</b></div>', unsafe_allow_html=True)
                 fig_g,ax_g = plt.subplots(figsize=(4,2.2))
                 _gauge(pp,ax_g); ax_g.set_title("Risk Score",fontsize=9)
                 st.pyplot(fig_g); plt.close(fig_g)
             else:
-                st.warning("Khong the chay AI du doan.")
+                st.warning("Không thể chạy AI dự đoán.")
     else:
         if not all_ints.empty:
-            st.markdown("### Trieu chung ghi nhan chinh thuc")
-            st.info(f"Cap thuoc nay co {len(all_ints)} tuong tac da ghi nhan.")
+            st.markdown("### Triệu chứng ghi nhận chính thức")
+            st.info(f"Cặp thuốc này có {len(all_ints)} tương tác đã ghi nhận.")
             sides = sorted(all_ints["Side_Name"].unique(), key=lambda s: side_vn_map.get(s,s))
-            st.dataframe(pd.DataFrame({"STT":range(1,len(sides)+1),"Trieu chung":[side_vn_map.get(s,s) for s in sides]}),
+            st.dataframe(pd.DataFrame({"STT":range(1,len(sides)+1),"Triệu chứng":[side_vn_map.get(s,s) for s in sides]}),
                          use_container_width=True, hide_index=True)
         else:
-            st.info("Cap thuoc nay CHUA CO trong dataset. AI se du doan.")
+            st.info("Cặp thuốc này CHƯA CÓ trong dataset. AI sẽ dự đoán.")
 
     st.markdown("---")
-    st.markdown("##### AI Discovery: Phan tich rui ro tiem an")
-    st.caption("Mau sac: Do >= 70% | Cam 40-70% | Xanh < 40%")
+    st.markdown("##### AI Discovery: Phân tích rủi ro tiềm ẩn")
+    st.caption("Màu sắc: Đỏ >= 70% | Cam 40-70% | Xanh < 40%")
 
     existing = set(all_ints["Side_Name"].unique())
-    if selected_side != "Tat ca": existing.add(selected_side)
+    if selected_side != "Tất cả": existing.add(selected_side)
 
     try:
         all_preds = predictor.get_all_side_probs(d1_smiles, d2_smiles, exclude_sides=existing)
         discoveries = [(p,s) for p,s in all_preds if p > prob_threshold]
         if not discoveries:
-            st.info(f"Khong co trieu chung vuot nguong {prob_threshold:.0f}%.")
+            st.info(f"Không có triệu chứng vượt ngưỡng {prob_threshold:.0f}%.")
         else:
             top10 = discoveries[:10]
             labels = [side_vn_map.get(s,s) for _,s in top10]
@@ -106,13 +106,13 @@ def render_pair_view(d1_smiles, d2_smiles, selected_side, df_full,
             ax.axvline(x=50, color="#7f8c8d", linestyle="--", linewidth=1.2, alpha=0.7)
             ax.text(50.5, len(top10)-0.5, "50%", fontsize=8, color="#7f8c8d", va="top")
             ax.set_xlim(0, max(max(values)*1.25, 60))
-            ax.set_xlabel("Xac suat du bao (%)", fontsize=9)
-            ax.set_title(f"Top {len(top10)} rui ro tiem an (nguong >{prob_threshold:.0f}%)", fontsize=11, fontweight="bold")
+            ax.set_xlabel("Xác suất dự báo (%)", fontsize=9)
+            ax.set_title(f"Top {len(top10)} rủi ro tiềm ẩn (ngưỡng >{prob_threshold:.0f}%)", fontsize=11, fontweight="bold")
             ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
             ax.tick_params(axis="y", labelsize=8)
-            patches = [mpatches.Patch(color="#e74c3c",label="Nguy hiem cao (>=70%)"),
-                       mpatches.Patch(color="#e67e22",label="Trung binh (40-70%)"),
-                       mpatches.Patch(color="#27ae60",label="Thap (<40%)")]
+            patches = [mpatches.Patch(color="#e74c3c",label="Nguy hiểm cao (>=70%)"),
+                       mpatches.Patch(color="#e67e22",label="Trung bình (40-70%)"),
+                       mpatches.Patch(color="#27ae60",label="Thấp (<40%)")]
             ax.legend(handles=patches, loc="lower right", fontsize=7, framealpha=0.8)
             fig.tight_layout(); st.pyplot(fig); plt.close(fig)
 
@@ -120,20 +120,20 @@ def render_pair_view(d1_smiles, d2_smiles, selected_side, df_full,
                 overall = np.average(values, weights=range(len(values),0,-1))
                 cg, cs = st.columns([1,2])
                 with cg:
-                    st.markdown("**Risk Score tong the**")
+                    st.markdown("**Risk Score tổng thể**")
                     fig_g,ax_g = plt.subplots(figsize=(3.5,2))
                     _gauge(overall,ax_g); st.pyplot(fig_g); plt.close(fig_g)
                 with cs:
                     high=sum(1 for v in values if v>=70)
                     mid=sum(1 for v in values if 40<=v<70)
                     low=sum(1 for v in values if v<40)
-                    st.markdown(f"**Phan bo muc nguy hiem (Top {len(top10)}):**\n- Do (>=70%): **{high}**\n- Cam (40-70%): **{mid}**\n- Xanh (<40%): **{low}**\n\nTong: **{len(discoveries)}** trieu chung vuot nguong {prob_threshold:.0f}%")
+                    st.markdown(f"**Phân bố mức nguy hiểm (Top {len(top10)}):**\n- Đỏ (>=70%): **{high}**\n- Cam (40-70%): **{mid}**\n- Xanh (<40%): **{low}**")
 
             if discoveries:
-                df_exp = pd.DataFrame([(side_vn_map.get(s,s),s,f"{p:.2f}%","Cao" if p>=70 else ("Tb" if p>=40 else "Thap")) for p,s in discoveries],
-                                      columns=["Trieu chung (VN)","Ten goc","Xac suat AI","Muc nguy hiem"])
-                st.download_button("Xuat ket qua CSV",
+                df_exp = pd.DataFrame([(side_vn_map.get(s,s),s,f"{p:.2f}%","Cao" if p>=70 else ("Tb" if p>=40 else "Thấp")) for p,s in discoveries],
+                                      columns=["Triệu chứng (VN)","Tên gốc","Xác suất AI","Mức nguy hiểm"])
+                st.download_button("Xuất kết quả CSV",
                                    data=df_exp.to_csv(index=False, encoding="utf-8-sig"),
                                    file_name=f"ai_{short1}_vs_{short2}.csv", mime="text/csv")
     except Exception as e:
-        st.error(f"Loi khi tinh toan AI Discovery: {e}")
+        st.error(f"Lỗi khi tính toán AI Discovery: {e}")

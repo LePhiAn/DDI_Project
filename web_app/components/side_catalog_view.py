@@ -13,12 +13,12 @@ def render_side_catalog_view(df_full, side_vn_map, drug_names):
     most_common_vn = side_vn_map.get(most_common_en, most_common_en)
 
     k1, k2, k3 = st.columns(3)
-    k1.metric("Tong loai trieu chung", f"{total_sides:,}")
-    k2.metric("Tong so tuong tac", f"{total_pairs:,}")
-    k3.metric("Pho bien nhat", most_common_vn[:25])
+    k1.metric("Tổng loại triệu chứng", f"{total_sides:,}")
+    k2.metric("Tổng số tương tác", f"{total_pairs:,}")
+    k3.metric("Phổ biến nhất", most_common_vn[:25])
 
     st.markdown("---")
-    st.markdown("### Top 10 Tac dung phu xuat hien nhieu nhat")
+    st.markdown("### Top 10 Tác dụng phụ xuất hiện nhiều nhất")
     top10 = df_full["Side_Name"].value_counts().head(10).iloc[::-1]
     top10_vn = [side_vn_map.get(x,x) for x in top10.index]
 
@@ -38,8 +38,8 @@ def render_side_catalog_view(df_full, side_vn_map, drug_names):
     plt.yticks(fontsize=10, fontweight="bold", color="#333")
     fig.tight_layout(); st.pyplot(fig); plt.close(fig)
 
-    st.markdown("### Treemap - Phan bo Top 20 tac dung phu")
-    st.caption("Kich thuoc o tuong ung voi so lan ghi nhan.")
+    st.markdown("### Treemap - Phân bố Top 20 tác dụng phụ")
+    st.caption("Kích thước ô tương ứng với số lần ghi nhận.")
     try:
         import squarify
         top20 = df_full["Side_Name"].value_counts().head(20)
@@ -51,14 +51,17 @@ def render_side_catalog_view(df_full, side_vn_map, drug_names):
         fig2, ax2 = plt.subplots(figsize=(12,5))
         squarify.plot(sizes=vals, label=top20_vn, color=colors_tm, alpha=0.85,
                       text_kwargs={"fontsize":8}, ax=ax2)
-        ax2.axis("off"); ax2.set_title("Top 20 tac dung phu theo tan suat", fontsize=11, fontweight="bold")
+        ax2.axis("off"); ax2.set_title("Top 20 tác dụng phụ theo tần suất", fontsize=11, fontweight="bold")
         fig2.tight_layout(); st.pyplot(fig2); plt.close(fig2)
-    except ImportError:
-        st.info("Cai squarify de xem Treemap: pip install squarify")
+    except Exception as e:
+        if "squarify" in str(type(e).__module__) or isinstance(e, ImportError):
+            st.info("Cài squarify để xem Treemap: pip install squarify")
+        else:
+            st.warning(f"Không thể vẽ Treemap: {e}")
 
     st.markdown("---")
-    st.markdown("### Toan bo danh muc")
-    search_query = st.text_input("Tim kiem tac dung phu (VN hoac EN):", placeholder="Nhap ten...")
+    st.markdown("### Toàn bộ danh mục")
+    search_query = st.text_input("Tìm kiếm tác dụng phụ (VN hoặc EN):", placeholder="Nhập tên...")
 
     freq_counts = df_full["Side_Name"].value_counts()
     all_sides = sorted(freq_counts.index.tolist(), key=lambda x: side_vn_map.get(x,x).lower())
@@ -66,19 +69,20 @@ def render_side_catalog_view(df_full, side_vn_map, drug_names):
         q = search_query.lower()
         all_sides = [s for s in all_sides if q in s.lower() or q in side_vn_map.get(s,"").lower()]
 
-    st.markdown(f"**Tong so:** {len(all_sides)} tac dung phu")
-    catalog_data = [{"STT":i,"Ten VN":side_vn_map.get(s,s),"Ten EN":s,"So lan ghi nhan":int(freq_counts.get(s,0))}
+    st.markdown(f"**Tổng số:** {len(all_sides)} tác dụng phụ")
+    catalog_data = [{"STT":i,"Tên VN":side_vn_map.get(s,s),"Tên EN":s,"Số lần ghi nhận":int(freq_counts.get(s,0))}
                     for i,s in enumerate(all_sides,1)]
     df_cat = pd.DataFrame(catalog_data)
     st.dataframe(df_cat, use_container_width=True, hide_index=True,
                  column_config={
                      "STT": st.column_config.NumberColumn("STT", width="small"),
-                     "Ten VN": st.column_config.TextColumn("Ten tieng Viet", width="large"),
-                     "Ten EN": st.column_config.TextColumn("Ten tieng Anh", width="large"),
-                     "So lan ghi nhan": st.column_config.ProgressColumn(
-                         "So lan ghi nhan", width="medium",
+                     "Tên VN": st.column_config.TextColumn("Tên tiếng Việt", width="large"),
+                     "Tên EN": st.column_config.TextColumn("Tên tiếng Anh", width="large"),
+                     "Số lần ghi nhận": st.column_config.ProgressColumn(
+                         "Số lần ghi nhận", width="medium",
+                         format="%d",
                          min_value=0, max_value=int(freq_counts.max()))
                  })
-    st.download_button("Xuat danh muc CSV",
+    st.download_button("Xuất danh mục CSV",
                        data=df_cat.to_csv(index=False, encoding="utf-8-sig"),
                        file_name="side_catalog.csv", mime="text/csv")

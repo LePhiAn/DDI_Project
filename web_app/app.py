@@ -86,46 +86,35 @@ d1, d2, selected_side, btn_analyze = render_input_section(
 
 if btn_analyze:
     st.markdown("---")
-    side_name_vn = side_vn_map.get(selected_side, "Tat ca rui ro")
+    side_name_vn = side_vn_map.get(selected_side, "Tất cả rủi ro")
 
     if d1 == "Trống" and d2 == "Trống":
         if selected_side == "Tất cả":
-            k1, k2, k3, k4 = st.columns(4)
-            with k1:
-                st.metric("Tong so cap", f"{len(df_full):,}")
-            with k2:
-                st.metric("So thuoc", f"{len(drug_to_id):,}")
-            with k3:
-                st.metric("Loai trieu chung", f"{len(side_list) - 1:,}")
-            with k4:
-                most_common = df_full["Side_Name"].value_counts().idxmax()
-                st.metric("Pho bien nhat", side_vn_map.get(most_common, most_common)[:20])
-            st.markdown("---")
             render_side_catalog_view(df_full, side_vn_map, drug_names)
 
         else:
-            st.subheader(f"Tac dung phu: {side_name_vn}")
+            st.subheader(f"Tác dụng phụ: {side_name_vn}")
             full_pairs = df_full[df_full["Side_Name"] == selected_side]
             if not full_pairs.empty:
-                st.markdown("### Cap ghi nhan trong dataset")
-                st.info(f"Tim thay **{len(full_pairs):,}** cap thuoc voi tac dung phu nay.")
+                st.markdown("### Cặp ghi nhận trong dataset")
+                st.info(f"Tìm thấy **{len(full_pairs):,}** cặp thuốc với tác dụng phụ này.")
                 pairs_display = full_pairs.copy()
                 pairs_display["Thuoc 1"] = pairs_display["SMILES_1"].map(lambda x: drug_names.get(x, x))
                 pairs_display["Thuoc 2"] = pairs_display["SMILES_2"].map(lambda x: drug_names.get(x, x))
-                with st.expander("Xem bang toan bo cap"):
+                with st.expander("Xem bảng toàn bộ cặp"):
                     st.dataframe(pairs_display[["Thuoc 1", "Thuoc 2"]], use_container_width=True, hide_index=True)
             else:
-                st.info("Chua co cap thuoc nao voi tac dung phu nay trong dataset.")
+                st.info("Chưa có cặp thuốc nào với tác dụng phụ này trong dataset.")
 
             st.markdown("---")
-            st.markdown("### AI - Cac cap tiem an ngoai dataset")
-            with st.spinner("Dang tinh toan AI..."):
+            st.markdown("### AI - Các cặp tiềm ẩn ngoài dataset")
+            with st.spinner("Đang tính toán AI..."):
                 top_preds = predictor.get_top_unknown_pairs_for_side(selected_side, top_n=20)
 
             if top_preds:
                 pred_data = [{
                     "prob": p,
-                    "Xac suat (%)": f"{p:.1f}%",
+                    "Xác suất (%)": f"{p:.1f}%",
                     "Thuoc 1": drug_names.get(d1s, d1s),
                     "Thuoc 2": drug_names.get(d2s, d2s)
                 } for p, d1s, d2s in top_preds]
@@ -133,8 +122,8 @@ if btn_analyze:
 
                 left_col, right_col = st.columns([1, 1])
                 with left_col:
-                    with st.expander("Bang top 20 du doan"):
-                        st.dataframe(pred_df[["Xac suat (%)", "Thuoc 1", "Thuoc 2"]], use_container_width=True, hide_index=True)
+                    with st.expander("Bảng top 20 dự đoán"):
+                        st.dataframe(pred_df[["Xác suất (%)", "Thuoc 1", "Thuoc 2"]], use_container_width=True, hide_index=True)
                 with right_col:
                     fig, ax = plt.subplots(figsize=(6, 6))
                     names = pred_df.apply(lambda r: f"{r['Thuoc 1']} | {r['Thuoc 2']}", axis=1)
@@ -144,14 +133,14 @@ if btn_analyze:
                     ax.set_yticks(y_pos)
                     ax.set_yticklabels(names, fontsize=8)
                     ax.invert_yaxis()
-                    ax.set_xlabel("Xac suat (%)")
-                    ax.set_title("Top 20 cap du doan AI")
+                    ax.set_xlabel("Xác suất (%)")
+                    ax.set_title("Top 20 cặp dự đoán AI")
                     for i, v in enumerate(probs):
                         ax.text(v + 0.5, i, f"{v:.1f}%", va="center", fontsize=9)
                     st.pyplot(fig)
                     plt.close(fig)
             else:
-                st.info("Khong co cap tiem an duoc AI du doan.")
+                st.info("Không có cặp tiềm ẩn được AI dự đoán.")
 
     elif d1 == "Trống" or d2 == "Trống":
         active_drug = d1 if d1 != "Trống" else d2
@@ -166,7 +155,7 @@ if btn_analyze:
 
     else:
         if d1 == d2:
-            st.error("Loi: Hai loai thuoc chon khong duoc trung nhau.")
+            st.error("Lỗi: Hai loại thuốc chọn không được trùng nhau.")
         else:
             render_pair_view(
                 d1_smiles=d1, d2_smiles=d2,
@@ -181,7 +170,7 @@ if btn_analyze:
 
 if show_top_10:
     st.markdown("---")
-    st.subheader("Top 10 Tac dung phu xuat hien nhieu nhat")
+    st.subheader("Top 10 Tác dụng phụ xuất hiện nhiều nhất")
     top_10_data = df_full["Side_Name"].value_counts().head(10).iloc[::-1]
     top_10_vn = [side_vn_map.get(x, x) for x in top_10_data.index]
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -201,26 +190,26 @@ if show_top_10:
 
 if show_extreme:
     st.markdown("---")
-    st.subheader("Top 20 cap thuoc co nhieu trieu chung tuong tac nhat")
-    with st.spinner("Dang trich xuat du lieu rui ro cao..."):
+    st.subheader("Top 20 cặp thuốc có nhiều triệu chứng tương tác nhất")
+    with st.spinner("Đang trích xuất dữ liệu rủi ro cao..."):
         top_20_pairs = (
             df_full.groupby(["SMILES_1", "SMILES_2"])
             .size()
-            .reset_index(name="So luong trieu chung")
-            .nlargest(20, "So luong trieu chung")
+            .reset_index(name="Số lượng triệu chứng")
+            .nlargest(20, "Số lượng triệu chứng")
         )
-        top_20_pairs["Thuoc 1"] = top_20_pairs["SMILES_1"].map(lambda x: drug_names.get(x, x))
-        top_20_pairs["Thuoc 2"] = top_20_pairs["SMILES_2"].map(lambda x: drug_names.get(x, x))
+        top_20_pairs["Thuốc 1"] = top_20_pairs["SMILES_1"].map(lambda x: drug_names.get(x, x))
+        top_20_pairs["Thuốc 2"] = top_20_pairs["SMILES_2"].map(lambda x: drug_names.get(x, x))
         st.dataframe(
-            top_20_pairs[["Thuoc 1", "Thuoc 2", "So luong trieu chung", "SMILES_1", "SMILES_2"]],
+            top_20_pairs[["Thuốc 1", "Thuốc 2", "Số lượng triệu chứng", "SMILES_1", "SMILES_2"]],
             use_container_width=True, hide_index=True,
             column_config={
-                "So luong trieu chung": st.column_config.NumberColumn("Tong so rui ro", format="%d"),
+                "Số lượng triệu chứng": st.column_config.NumberColumn("Tổng số rủi ro", format="%d"),
                 "SMILES_1": None,
                 "SMILES_2": None
             }
         )
-    st.error("Luu y: Day la danh sach cac cap thuoc co muc do tuong tac phuc tap nhat.")
+    st.error("Lưu ý: Đây là danh sách các cặp thuốc có mức độ tương tác phức tạp nhất.")
 
 if show_analytics:
     st.markdown("---")
