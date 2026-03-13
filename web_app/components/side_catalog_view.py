@@ -1,135 +1,84 @@
-# ============================================
-# Side Effect Catalog View - Vietnamese
-# ============================================
-
+# -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
-import sys
-import os
+import matplotlib.pyplot as plt
 
-# For relative imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from utils import format_stt, shorten_vietnamese_name, render_risk_badge
+_GRAD = ["#1a5276","#1f618d","#2471a3","#2e86c1","#3498db","#5dade2","#7fb3d3","#a9cce3","#c5d9e8","#d6e9f5"]
 
 
-def render_side_catalog_view(side_map, predictor=None, side_to_vn=None):
-    """Render comprehensive side effect catalog as a medical table."""
-    st.markdown("### 📋 Danh Mục Tác Dụng Phụ")
-    
-    side_map = side_map or {}
-    side_to_vn = side_to_vn or {}
-    
-    # Search and filter
-    search_query = st.text_input(
-        "🔍 Tìm kiếm tác dụng phụ (tiếng Việt hoặc tiếng Anh):",
-        placeholder="Nhập tên tác dụng phụ..."
-    )
-    
-    # Filter logic
-    side_effects = list(side_map.keys())
-    if search_query:
-        search_lower = search_query.lower()
-        side_effects = [
-            s for s in side_effects
-            if search_lower in s.lower()
-            or search_lower in side_to_vn.get(s, "").lower()
-        ]
-    
-    st.markdown(f"**Tổng số:** {len(side_effects)} tác dụng phụ")
+def render_side_catalog_view(df_full, side_vn_map, drug_names):
+    total_sides = df_full["Side_Name"].nunique()
+    total_pairs = len(df_full)
+    most_common_en = df_full["Side_Name"].value_counts().idxmax()
+    most_common_vn = side_vn_map.get(most_common_en, most_common_en)
+
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Tong loai trieu chung", f"{total_sides:,}")
+    k2.metric("Tong so tuong tac", f"{total_pairs:,}")
+    k3.metric("Pho bien nhat", most_common_vn[:25])
+
     st.markdown("---")
-    
-    # Build catalog table
-    if side_effects:
-        catalog_data = []
-        
-        for idx, side_en in enumerate(side_effects, 1):
-            side_vi = side_to_vn.get(side_en, side_en)
-            
-            # Simplified: estimate frequency based on availability
-            # In production, this would come from training data statistics
-            frequency = f"{(idx % 10) + 1}"
-            drug_pairs = f"{50 + idx * 5}"  # Placeholder
-            
-            catalog_data.append({
-                "STT": format_stt(idx - 1),
-                "Tên tiếng Việt": shorten_vietnamese_name(side_vi, 40),
-                "Tên tiếng Anh": side_en,
-                "Tần suất": frequency,
-                "Số cặp thuốc": drug_pairs
-            })
-        
-        df = pd.DataFrame(catalog_data)
-        
-        # Display as table
-        st.dataframe(
-            df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "STT": st.column_config.TextColumn("STT", width="small"),
-                "Tên tiếng Việt": st.column_config.TextColumn("Tên tiếng Việt", width="large"),
-                "Tên tiếng Anh": st.column_config.TextColumn("Tên tiếng Anh", width="large"),
-                "Tần suất": st.column_config.NumberColumn("Tần suất", width="small"),
-                "Số cặp thuốc": st.column_config.NumberColumn("Số cặp thuốc", width="small"),
-            }
-        )
-        
-        # Detail analysis option
-        st.markdown("---")
-        st.markdown("#### 📊 Chi Tiết Tác Dụng Phụ")
-        
-        selected_side = st.selectbox(
-            "Chọn tác dụng phụ để xem chi tiết:",
-            side_effects,
-            format_func=lambda x: f"{side_to_vn.get(x, x)} ({x})"
-        )
-        
-        if selected_side:
-            side_vi = side_to_vn.get(selected_side, selected_side)
-            
-            st.markdown(f"**{side_vi}**")
-            st.caption(f"_{selected_side}_")
-            
-            severity = _classify_severity_by_name(selected_side)
-            st.markdown(f"**Mức độ nghiêm trọng ước tính:** ")
-            render_risk_badge(severity)
-            
-            st.info(_generate_clinical_note(severity))
-    else:
-        st.warning("Không tìm thấy tác dụng phụ phù hợp với tìm kiếm của bạn.")
+    st.markdown("### Top 10 Tac dung phu xuat hien nhieu nhat")
+    top10 = df_full["Side_Name"].value_counts().head(10).iloc[::-1]
+    top10_vn = [side_vn_map.get(x,x) for x in top10.index]
 
+    fig, ax = plt.subplots(figsize=(12,5))
+    colors = _GRAD[::-1][:len(top10)]
+    bars = ax.barh(top10_vn, top10.values, color=colors, height=0.7, edgecolor="white", linewidth=0.8)
+    avg = top10.values.mean()
+    ax.axvline(x=avg, color="#e74c3c", linestyle="--", linewidth=1.3, alpha=0.8)
+    ax.text(avg+max(top10.values)*0.005, len(top10)-0.3, f"TB: {avg:,.0f}", color="#e74c3c", fontsize=8, va="top")
+    for bar, val in zip(bars, top10.values[::-1]):
+        pct = val/top10.sum()*100
+        ax.text(val+max(top10.values)*0.01, bar.get_y()+bar.get_height()/2,
+                f"{int(val):,}  ({pct:.1f}%)", va="center", fontweight="bold", fontsize=9, color="#333")
+    ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
+    ax.spines["bottom"].set_visible(False); ax.xaxis.set_visible(False)
+    ax.set_xlim(0, max(top10.values)*1.3)
+    plt.yticks(fontsize=10, fontweight="bold", color="#333")
+    fig.tight_layout(); st.pyplot(fig); plt.close(fig)
 
-def _classify_severity_by_name(name):
-    """Classify severity based on keywords in side effect name."""
-    severe_keywords = [
-        "failure", "death", "arrest", "cardiac",
-        "hemorrhage", "shock", "respiratory", "fatal",
-        "necrosis", "infarction", "thrombosis"
-    ]
-    
-    moderate_keywords = [
-        "pain", "infection", "inflammation",
-        "injury", "fever", "nausea"
-    ]
-    
-    name_lower = name.lower()
-    
-    for kw in severe_keywords:
-        if kw in name_lower:
-            return "CRITICAL"
-    
-    for kw in moderate_keywords:
-        if kw in name_lower:
-            return "MODERATE"
-    
-    return "LOW"
+    st.markdown("### Treemap - Phan bo Top 20 tac dung phu")
+    st.caption("Kich thuoc o tuong ung voi so lan ghi nhan.")
+    try:
+        import squarify
+        top20 = df_full["Side_Name"].value_counts().head(20)
+        top20_vn = [side_vn_map.get(x,x)[:22] for x in top20.index]
+        vals = top20.values.tolist()
+        cmap = plt.cm.Blues
+        norm_vals = [(v-min(vals))/(max(vals)-min(vals)+1) for v in vals]
+        colors_tm = [cmap(0.3+0.6*nv) for nv in norm_vals]
+        fig2, ax2 = plt.subplots(figsize=(12,5))
+        squarify.plot(sizes=vals, label=top20_vn, color=colors_tm, alpha=0.85,
+                      text_kwargs={"fontsize":8}, ax=ax2)
+        ax2.axis("off"); ax2.set_title("Top 20 tac dung phu theo tan suat", fontsize=11, fontweight="bold")
+        fig2.tight_layout(); st.pyplot(fig2); plt.close(fig2)
+    except ImportError:
+        st.info("Cai squarify de xem Treemap: pip install squarify")
 
+    st.markdown("---")
+    st.markdown("### Toan bo danh muc")
+    search_query = st.text_input("Tim kiem tac dung phu (VN hoac EN):", placeholder="Nhap ten...")
 
-def _generate_clinical_note(severity):
-    """Generate clinical note based on severity level."""
-    notes = {
-        "CRITICAL": "⚠️ Tác dụng phụ có thể gây nguy hiểm đến tính mạng. Cần giám sát chặt chẽ.",
-        "MODERATE": "⚠️ Tác dụng phụ có mức độ trung bình. Theo dõi phản ứng bệnh nhân.",
-        "LOW": "💚 Tác dụng phụ tương đối nhẹ trong hầu hết trường hợp."
-    }
-    return notes.get(severity, "Không có thông tin.")
+    freq_counts = df_full["Side_Name"].value_counts()
+    all_sides = sorted(freq_counts.index.tolist(), key=lambda x: side_vn_map.get(x,x).lower())
+    if search_query:
+        q = search_query.lower()
+        all_sides = [s for s in all_sides if q in s.lower() or q in side_vn_map.get(s,"").lower()]
+
+    st.markdown(f"**Tong so:** {len(all_sides)} tac dung phu")
+    catalog_data = [{"STT":i,"Ten VN":side_vn_map.get(s,s),"Ten EN":s,"So lan ghi nhan":int(freq_counts.get(s,0))}
+                    for i,s in enumerate(all_sides,1)]
+    df_cat = pd.DataFrame(catalog_data)
+    st.dataframe(df_cat, use_container_width=True, hide_index=True,
+                 column_config={
+                     "STT": st.column_config.NumberColumn("STT", width="small"),
+                     "Ten VN": st.column_config.TextColumn("Ten tieng Viet", width="large"),
+                     "Ten EN": st.column_config.TextColumn("Ten tieng Anh", width="large"),
+                     "So lan ghi nhan": st.column_config.ProgressColumn(
+                         "So lan ghi nhan", width="medium",
+                         min_value=0, max_value=int(freq_counts.max()))
+                 })
+    st.download_button("Xuat danh muc CSV",
+                       data=df_cat.to_csv(index=False, encoding="utf-8-sig"),
+                       file_name="side_catalog.csv", mime="text/csv")
