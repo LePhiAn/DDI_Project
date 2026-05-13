@@ -36,6 +36,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+st.title("🚀 Hello từ dự án DDI!")
+st.subheader("Hệ thống phân tích tương tác thuốc thông minh")
+
+
 
 @st.cache_resource
 def load_all():

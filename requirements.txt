@@ -1,9 +1,25 @@
+# --- Core AI & Graph Neural Networks ---
 torch
 torch-geometric
+
+# --- Cheminformatics & Molecular Data ---
 rdkit
 deepchem
+pubchempy
+
+# --- Data Science & Analysis ---
 pandas
 numpy
-flask  # Cho Web Backend
-streamlit # Cho Web Frontend (lựa chọn 2)
 scikit-learn
+scipy
+matplotlib
+
+# --- Web Interface & Translation ---
+streamlit
+deep-translator
+Pillow
+
+# --- Utilities ---
+requests
+tqdm
+

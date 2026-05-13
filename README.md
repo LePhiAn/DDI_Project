@@ -23,8 +23,8 @@ python -m venv venv
 # Kích hoạt môi trường (Windows)
 .\venv\Scripts\activate
 
-# Cài đặt thư viện cần thiết
-pip install torch torch-geometric rdkit deepchem pandas pubchempy deep-translator matplotlib streamlit
+# Cài đặt toàn bộ thư viện từ file requirements
+pip install -r requirements.txt
 ```
 
 ### 2. Chạy ứng dụng Web
@@ -65,6 +65,12 @@ Chứa toàn bộ logic AI và xử lý dữ liệu nền tảng.
     *   **Hàm**: `create_pyg_graph(df)` - Chuyển dữ liệu CSV thành định dạng đồ thị PyTorch Geometric.
 *   **`data_prep.py`**:
     *   **Hàm**: `fetch_smiles_from_pubchem(cid_list)` - Tự động tải cấu trúc SMILES từ PubChem qua CID.
+*   **`fetch_names.py`**:
+    *   **Chức năng**: Tự động tra cứu tên thuốc thương mại (Synonyms) từ PubChem dựa trên SMILES.
+*   **`get_name.py`**: 
+    *   **Chức năng**: Script tiện ích để tra cứu nhanh 1 tên thuốc đơn lẻ.
+*   **`inference.py`**:
+    *   **Chức năng**: Cung cấp các hàm nền tảng để tính toán xác suất tương tác từ Vector Embedding.
 *   **`auto_translate.py`**:
     *   **Chức năng**: Tự động dịch tên tác dụng phụ từ tiếng Anh sang tiếng Việt bằng Google Translate API.
 
@@ -74,22 +80,58 @@ Chứa giao diện người dùng và các dịch vụ hỗ trợ UI.
 #### **Services (`web_app/services/`)**
 *   **`mapping_service.py`**:
     *   **Chức năng**: Quản lý ánh xạ giữa ID thuốc, SMILES, tên thuốc tiếng Anh và tiếng Việt.
-    *   **Biến**: `drug_to_id`, `side_to_id`, `drug_to_name`, `side_to_vn`.
 *   **`predictor_service.py`**:
-    *   **Chức năng**: Cung cấp các hàm dự đoán tối ưu hóa cho giao diện (Pre-compute embeddings).
-    *   **Hàm quan trọng**:
-        *   `get_all_side_probs()`: Tính xác suất cho tất cả 1,300+ tác dụng phụ cùng lúc.
-        *   `get_top_unknown_pairs_for_side()`: Tìm cặp thuốc rủi ro nhất cho một triệu chứng cụ thể.
+    *   **Chức năng**: Dự đoán tối ưu cho UI (Pre-compute embeddings).
 *   **`model_loader.py`**:
-    *   **Chức năng**: Tải mô hình R-GCN từ checkpoint `.pth` một cách an toàn.
+    *   **Chức năng**: Tải mô hình R-GCN từ file `.pth`.
 
 #### **Components (`web_app/components/`)**
-*   **`sidebar.py`**: Quản lý bảng điều khiển bên trái (Random cặp, bộ lọc xác suất, thống kê).
-*   **`input_section.py`**: Khu vực chọn thuốc và tác dụng phụ chính ở giữa màn hình.
-*   **`pair_view.py`**: Hiển thị so sánh chi tiết giữa 2 thuốc (Hình vẽ phân tử, Gauge rủi ro, Biểu đồ rủi ro tiềm ẩn).
-*   **`single_drug_view.py`**: Hiển thị thông tin và biểu đồ tròn rủi ro của từng loại thuốc đơn lẻ.
-*   **`analytics_view.py`**: Cung cấp các biểu đồ về hiệu năng mô hình (Loss, Accuracy nếu có).
-*   **`side_catalog_view.py`**: Hiển thị danh mục tất cả tác dụng phụ có trong hệ thống.
+*   **`sidebar.py`**, **`input_section.py`**, **`pair_view.py`**, **`single_drug_view.py`**, **`analytics_view.py`**, **`side_catalog_view.py`**: Các thành phần giao diện chia nhỏ theo module.
+
+---
+
+## 🎨 Chi tiết Biến số & Kiến trúc Giao diện (Streamlit UI)
+Phần này dành riêng cho việc phát triển và nâng cấp giao diện `app.py`.
+
+### 1. Các biến dữ liệu nền tảng (Core Data)
+Các biến này được load qua `load_all()` và dùng chung cho toàn bộ app:
+| Tên biến | Kiểu | Chức năng |
+| :--- | :--- | :--- |
+| `mapping` | Service | Chứa logic ánh xạ (SMILES, Tên thuốc, ID). |
+| `predictor` | Service | Chứa model AI và thực hiện dự đoán xác suất. |
+| `df_full` | DataFrame | Bảng dữ liệu gốc (Ground Truth) từ dataset Decagon. |
+| `drug_list` | List | Danh sách tên thuốc để hiển thị trong `st.selectbox`. |
+| `side_list` | List | Danh sách 1,300+ tác dụng phụ. |
+| `drug_names` | Dict | Map SMILES $\rightarrow$ Tên thuốc thường gọi. |
+| `side_vn_map` | Dict | Map Tên tiếng Anh $\rightarrow$ Tên tiếng Việt. |
+
+### 2. Các biến điều khiển & Trạng thái (Control & State)
+Quản lý qua Sidebar và Session State:
+| Tên biến | Chức năng |
+| :--- | :--- |
+| `show_top_10` | Bật/tắt biểu đồ Thống kê Top 10 tác dụng phụ. |
+| `show_extreme`| Bật/tắt bảng "Top 20 cặp thuốc nguy hiểm nhất". |
+| `prob_threshold`| Ngưỡng lọc rủi ro AI (mặc định 50%). |
+| `st.session_state.d1` | Lưu thuốc thứ 1 người dùng đang chọn. |
+| `st.session_state.d2` | Lưu thuốc thứ 2 người dùng đang chọn. |
+| `st.session_state.side` | Lưu tác dụng phụ đang được chọn để soi. |
+
+### 3. Logic luồng hiển thị (UI Flow Logic)
+Giao diện thay đổi dựa trên trạng thái của `d1` và `d2`:
+1.  **Mặc định (`Trống` & `Trống`)**: Hiển thị **Side Catalog** (Danh mục tổng).
+2.  **Soi 1 thuốc (`d1` hoặc `d2` khác `Trống`)**: Gọi `render_single_drug_view`.
+3.  **Soi cặp thuốc (Cả 2 đều khác `Trống`)**: Gọi `render_pair_view`.
+4.  **Lọc theo Triệu chứng**: Nếu chọn 1 `selected_side` cụ thể, hệ thống sẽ ưu tiên lọc các cặp thuốc liên quan đến triệu chứng đó.
+
+---
+
+## ☁️ Hướng dẫn Deploy lên Streamlit Cloud
+Để ứng dụng chạy online, hãy thực hiện các bước sau:
+
+1.  **Repository**: Đẩy toàn bộ source code lên GitHub (bao gồm cả thư mục `models/` và `data/`).
+2.  **Entry Point**: Khi cấu hình trên Streamlit Cloud, trỏ đường dẫn chính vào: `web_app/app.py`.
+3.  **Requirements**: Streamlit Cloud sẽ tự động đọc file `requirements.txt` ở thư mục gốc để cài đặt môi trường.
+4.  **Secrets (Nếu có)**: Nếu bạn dùng các API key bí mật, hãy cấu hình trong mục "Secrets" của Streamlit.
 
 ---
 
@@ -98,33 +140,25 @@ Chứa giao diện người dùng và các dịch vụ hỗ trợ UI.
 ### 🔹 PredictorService (`web_app/services/predictor_service.py`)
 | Hàm / Biến | Mô tả |
 | :--- | :--- |
-| `h_all` | Biến chứa toàn bộ Embedding của thuốc sau khi đi qua mô hình AI. |
-| `_distmult_score(...)` | Tính toán điểm tương tác giữa 2 nút thuốc dựa trên một quan hệ (side effect). |
-| `_score_to_prob(score)` | Dùng hàm *tanh* và *sigmoid scaling* để chuyển điểm thô thành xác suất (0-100%). |
+| `h_all` | Tensor chứa toàn bộ Embedding của thuốc sau khi đi qua mô hình AI. |
 | `get_prob(d1, d2, side)` | Trả về xác suất của một cặp thuốc với một triệu chứng cụ thể. |
 
 ### 🔹 InferenceEngine (`src/inference_engine.py`)
 | Hàm | Đầu vào | Đầu ra |
 | :--- | :--- | :--- |
-| `predict_pair` | `drug1_smiles`, `drug2_smiles` | JSON chứa mức độ rủi ro, phân tích lâm sàng và Top 10 rủi ro. |
-| `_determine_overall_risk` | Dữ liệu tổng hợp | Phân loại rủi ro tổng hợp (CRITICAL nếu có triệu chứng cực kỳ nguy hiểm). |
-
-### 🔹 RGCN_DDI_Model (`src/model_arch.py`)
-| Lớp / Phương thức | Chi tiết |
-| :--- | :--- |
-| `RGCNConv` | Lớp tích chập đồ thị xử lý các mối quan hệ đa tầng. |
-| `rel_emb` | Ma trận Embedding cho 1,317 loại tác dụng phụ khác nhau. |
-| `classifier` | Mạng nơ-ron Dense dùng để phân loại rủi ro từ vector đặc trưng. |
+| `predict_pair` | `drug1_smiles`, `drug2_smiles` | JSON chứa mức độ rủi ro và phân tích lâm sàng. |
 
 ---
 
 ## 🏷️ Quy tắc dữ liệu (Data Rules)
 Dự án sử dụng các định danh chuẩn để đồng bộ giữa các module:
-- **`drug_to_id`**: Mapping SMILES $\rightarrow$ ID số nguyên (0 đến N-1).
-- **`side_to_id`**: Mapping Side Name $\rightarrow$ ID quan hệ (0 đến 1316).
-- **`h_all`**: Tensor lưu trữ trạng thái "hiểu biết" của mô hình về toàn bộ dược phẩm.
+- **`data/raw/`**: Chứa file `ChChSe-Decagon_polypharmacy.csv` (Dữ liệu gốc).
+- **`data/mapping/`**: Chứa `drug_mapping.csv` (Tên thuốc) và `full_cid_to_smiles.csv`.
+- **`data/processed/`**: Chứa `ready_to_train.csv` (Dữ liệu đã sạch).
+- **`models/`**: Chứa file `r_gcn_full_model.pth` (Trọng số mô hình).
 
 ---
 
 ## 📧 Liên hệ & Bản quyền
 Dự án được phát triển cho mục đích nghiên cứu phân tích dữ liệu DDI. Mọi thông tin dự đoán từ AI nên được tham khảo ý kiến chuyên gia y tế trước khi áp dụng lâm sàng.
+

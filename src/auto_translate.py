@@ -25,9 +25,6 @@ def auto_translate_with_checkpoint():
 
     # 3. Cấu hình bộ dịch
     translator = GoogleTranslator(source='en', target='vi')
-    
-    print(f"🔄 Tổng số: {len(mapping_df)} dòng.")
-    print("🚀 Bắt đầu dịch (Dịch tới đâu lưu tới đó)...")
 
     for index, row in mapping_df.iterrows():
         # Chỉ dịch nếu cột Side_VN đang trống hoặc bằng chính Side_Name

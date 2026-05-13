@@ -14,7 +14,7 @@ df_raw = pd.read_csv(RAW_DATA_PATH, skiprows=1,
 df_mapping = pd.read_csv(MAPPING_PATH)
 
 # --- BƯỚC KIỂM TRA (THỐNG KÊ LÝ DO MẤT DỮ LIỆU) ---
-print("--- 📊 2. THỐNG KÊ TRƯỚC KHI MERGE ---")
+print("--- THỐNG KÊ TRƯỚC KHI MERGE ---")
 drugs_in_raw = pd.concat([df_raw['Drug1'], df_raw['Drug2']]).unique()
 drugs_in_mapping = df_mapping['Drug_ID'].unique()
 
@@ -27,12 +27,12 @@ print(f"  + Tỉ lệ thuốc giữ lại được: {((len(drugs_in_raw)-len(mis
 print("-" * 40)
 
 # 2. Merge SMILES cho thuốc thứ nhất (Drug1)
-print("--- 🔗 3. ĐANG ÁNH XẠ SMILES CHO DRUG 1 ---")
+print("--- ĐANG ÁNH XẠ SMILES CHO DRUG 1 ---")
 df = pd.merge(df_raw, df_mapping, left_on='Drug1', right_on='Drug_ID').drop('Drug_ID', axis=1)
 df = df.rename(columns={'SMILES': 'SMILES_1'})
 
 # 3. Merge SMILES cho thuốc thứ hai (Drug2)
-print("--- 🔗 4. ĐANG ÁNH XẠ SMILES CHO DRUG 2 ---")
+print("--- ĐANG ÁNH XẠ SMILES CHO DRUG 2 ---")
 df = pd.merge(df, df_mapping, left_on='Drug2', right_on='Drug_ID').drop('Drug_ID', axis=1)
 df = df.rename(columns={'SMILES': 'SMILES_2'})
 

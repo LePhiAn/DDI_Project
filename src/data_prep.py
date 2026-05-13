@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # 1. Lấy danh sách tổng từ file gốc
     all_target_cids = get_unique_cids(RAW_DATA_PATH)
     
-    # 2. KIỂM TRA FILE ĐÃ TỒN TẠI (Đoạn này phải nằm ở đây)
+    # 2. KIỂM TRA FILE ĐÃ TỒN TẠI 
     final_cids_to_fetch = all_target_cids
     existing_df = pd.DataFrame(columns=['Drug_ID', 'SMILES'])
 

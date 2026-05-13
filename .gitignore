@@ -3,9 +3,10 @@ data/raw/
 data/processed/
 
 # Bỏ qua môi trường ảo
+.venv/
 venv/
 __pycache__/
 *.pyc
 
-# Bỏ qua file mô hình nặng
-models/*.pth
+# Mô hình: Chỉ bỏ qua nếu file > 100MB (GitHub limit)
+# models/r_gcn_final_model.pth  # Bỏ comment nếu file này > 100MB
